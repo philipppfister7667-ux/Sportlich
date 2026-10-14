@@ -78,6 +78,14 @@ summary{font-family:var(--display);font-size:22px;font-weight:600;text-transform
 .status.err{color:var(--warn)}
 .edit textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 10px;width:100%}
 .loading{color:var(--muted)}
+.subhead{font-family:var(--display);font-size:20px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin:10px 0 0;border-top:1px solid var(--line);padding-top:16px}
+.conn{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.conn li{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
+.conn .name{flex:1 1 6em}
+.conn .tag{margin-left:0}
+.conn-btn{border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:4px;padding:6px 12px;font-weight:600}
+.link{background:none;border:0;padding:6px 0;color:var(--muted);text-decoration:underline}
+a{color:var(--accent)}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 </head>
@@ -99,6 +107,7 @@ summary{font-family:var(--display);font-size:22px;font-weight:600;text-transform
   var today = iso(now.getFullYear(), now.getMonth(), now.getDate());
   var view = { y: now.getFullYear(), m: now.getMonth() };
   var log = {}, draft = null;            // draft: Einträge für editDate, solange nicht gespeichert
+  var strava = { configured: false, connected: {}, days: {} }, discArmed = "";
   var editDate = today, editOpen = false, status = "", statusErr = false, busy = false, loadError = false, shareFallback = "";
   var pin = "";
   try { pin = localStorage.getItem("pin") || ""; } catch (e) {}
@@ -107,12 +116,25 @@ summary{font-family:var(--display);font-size:22px;font-weight:600;text-transform
   function dayEntries(){ return draft || (log[editDate] || []); }
   function dirty(){ return draft !== null && JSON.stringify(draft) !== JSON.stringify(log[editDate] || []); }
 
+  // Alle Tage, für die es einen Handeintrag oder eine Strava-Aktivität gibt.
+  function allDates(){
+    var s = {};
+    Object.keys(log).forEach(function(d){ s[d] = 1; });
+    Object.keys(strava.days).forEach(function(m){ Object.keys(strava.days[m]).forEach(function(d){ s[d] = 1; }); });
+    return Object.keys(s);
+  }
+  // Einheiten einer Person an einem Tag: Handeintrag und Strava werden nicht addiert, es gilt der höhere Wert, höchstens 3.
+  function unitsOn(id, d){
+    var manual = (log[d] || []).filter(function(x){ return x === id; }).length;
+    var auto = (strava.days[id] && strava.days[id][d]) || 0;
+    return Math.min(3, Math.max(manual, auto));
+  }
   function counts(prefix){
     var c = {};
     MEMBERS.forEach(function(p){ c[p.id] = 0; });
-    Object.keys(log).forEach(function(d){
+    allDates().forEach(function(d){
       if (d.indexOf(prefix) !== 0) return;
-      log[d].forEach(function(id){ if (id in c) c[id]++; });
+      MEMBERS.forEach(function(p){ c[p.id] += unitsOn(p.id, d); });
     });
     return c;
   }
@@ -126,7 +148,7 @@ summary{font-family:var(--display);font-size:22px;font-weight:600;text-transform
     var t = {}, done = 0, months = {};
     MEMBERS.forEach(function(p){ t[p.id] = { name: p.name, g: 0, s: 0, b: 0, pts: 0 }; });
     var cur = today.slice(0, 7);
-    Object.keys(log).forEach(function(d){ if (log[d].length) months[d.slice(0, 7)] = 1; });
+    allDates().forEach(function(d){ months[d.slice(0, 7)] = 1; });
     Object.keys(months).forEach(function(mk){
       if (mk >= cur) return;
       done++;
@@ -146,6 +168,7 @@ summary{font-family:var(--display);font-size:22px;font-weight:600;text-transform
     var days = new Date(view.y, view.m + 1, 0).getDate();
     var rows = ranking(counts(mk));
     var min = rows[rows.length - 1].n, max = rows[0].n;
+    var lastGroup = rows.filter(function(x){ return x.n === min; }).length;
     var isCur = view.y === now.getFullYear() && view.m === now.getMonth();
     var h = '<section><div class="sechead"><h2>Monatswertung</h2><div class="nav">' +
       '<button type="button" data-nav="-1" aria-label="Vorheriger Monat">&#8249;</button><span>' + MONTHS[view.m] + " " + view.y + '</span>' +
@@ -154,11 +177,11 @@ summary{font-family:var(--display);font-size:22px;font-weight:600;text-transform
     h += '<ol class="rank">';
     rows.forEach(function(r){
       var badge = r.n && r.pos <= 3 ? '<span class="medal m' + r.pos + '" aria-label="Platz ' + r.pos + '">' + r.pos + '</span>' : r.pos;
-      var tag = max && r.n === min && min < max ? '<span class="tag">Schlusslicht</span>' : "";
+      var tag = max && r.n === min && min < max && lastGroup <= 2 ? '<span class="tag">Schlusslicht</span>' : "";
       var dots = "";
       for (var d = 1; d <= days; d++){
         var key = iso(view.y, view.m, d);
-        var on = (log[key] || []).indexOf(r.id) >= 0;
+        var on = unitsOn(r.id, key) > 0;
         dots += '<i class="' + (on ? "on" : key > today ? "future" : "") + '"></i>';
       }
       h += '<li><span class="pos">' + badge + '</span><span class="name">' + esc(r.name) + tag + '</span>' +
@@ -191,13 +214,14 @@ summary{font-family:var(--display);font-size:22px;font-weight:600;text-transform
   function rulesSection(){
     return '<section><div class="sechead"><h2>So läuft es</h2></div><ul class="rules">' +
       '<li>Nach dem Training ein Foto oder einen Tracker-Screenshot in die Gruppe posten. Jeder Post zählt als eine Einheit. Morgens Studio und abends joggen sind zwei, mehr als drei am Tag werden nicht gezählt.</li>' +
+      (strava.configured ? '<li>Mit verbundenem Strava zählen Aktivitäten ab 20 Minuten automatisch, Spaziergänge nicht. Strava gilt ab dem 1. Oktober. Wer am selben Tag auch von Hand einträgt, bekommt nichts doppelt.</li>' : '') +
       '<li>Am Monatsende gibt es Gold, Silber und Bronze für die drei mit den meisten Einheiten.</li>' +
       '<li>Wer am Monatsende Schlusslicht ist, muss sich etwas anhören.</li>' +
       '<li>Am Jahresende gewinnt die Person mit den meisten Einheiten den Preis.</li></ul></section>';
   }
   function editSection(){
     var on = dayEntries();
-    var h = '<details id="editor"' + (editOpen ? " open" : "") + '><summary>Training eintragen</summary><div class="edit">' +
+    var h = '<details id="editor"' + (editOpen ? " open" : "") + '><summary>' + (strava.configured ? "Eintragen und Strava" : "Training eintragen") + '</summary><div class="edit">' +
       '<label for="pin">Gruppen-PIN<input type="password" id="pin" inputmode="numeric" autocomplete="off" value="' + esc(pin) + '"></label>' +
       '<label for="editDate">Tag<input type="date" id="editDate" value="' + editDate + '" max="' + today + '"></label><div class="chips">';
     MEMBERS.forEach(function(p){
@@ -208,7 +232,22 @@ summary{font-family:var(--display);font-size:22px;font-weight:600;text-transform
       '<button type="button" class="save ghost" id="copy">Stand für WhatsApp kopieren</button></div>' +
       '<p class="status' + (statusErr ? " err" : "") + '" role="status">' + esc(status || (dirty() ? "Ungespeicherte Änderungen." : "Tippe an, wer an dem Tag trainiert hat. Noch einmal tippen für eine zweite Einheit.")) + '</p>';
     if (shareFallback) h += '<textarea id="shareBox" readonly rows="14">' + esc(shareFallback) + '</textarea>';
-    return h + '</div></details>';
+    return h + stravaSection() + '</div></details>';
+  }
+  function stravaSection(){
+    if (!strava.configured) return "";
+    var h = '<h3 class="subhead">Strava</h3><p class="note">Verbinde dein Strava, dann zählen deine Aktivitäten automatisch. Von Hand eintragen geht weiterhin. Gib dafür oben die Gruppen-PIN ein.</p><ul class="conn">';
+    MEMBERS.forEach(function(p){
+      var st = strava.connected[p.id];
+      h += '<li><span class="name">' + esc(p.name) + '</span>';
+      if (st === "ok"){
+        h += '<span class="tag good">verbunden</span><button type="button" class="link" data-disc="' + p.id + '">' + (discArmed === p.id ? "Wirklich trennen?" : "Trennen") + '</button>';
+      } else {
+        h += (st === "broken" ? '<span class="tag">Verbindung erneuern</span>' : "") + '<button type="button" class="conn-btn" data-conn="' + p.id + '">Mit Strava verbinden</button>';
+      }
+      h += '</li>';
+    });
+    return h + '</ul><p class="note">Die Aktivitäten kommen von <a href="https://www.strava.com" target="_blank" rel="noopener">Strava</a>.</p>';
   }
   function render(){
     if (loadError){
@@ -228,13 +267,55 @@ summary{font-family:var(--display);font-size:22px;font-weight:600;text-transform
     return lines.join("\n");
   }
 
+  // Neu zeichnen, aber nicht mitten in der Eingabe von PIN oder Datum.
+  function softRender(){
+    var a = document.activeElement;
+    if (a && (a.id === "pin" || a.id === "editDate")) return;
+    render();
+  }
+  function loadStrava(sync){
+    var opts = { cache: "no-store" };
+    if (sync){ opts.method = "POST"; opts.headers = { "content-type": "application/json" }; opts.body = JSON.stringify({ action: "sync" }); }
+    return fetch("/api/strava", opts).then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){ if (d && d.days){ strava = d; softRender(); } })
+      .catch(function(){});
+  }
   function load(){
     return fetch("/api/log", { cache: "no-store" }).then(function(r){
       if (!r.ok) throw new Error();
       return r.json();
-    }).then(function(d){ log = d.log || {}; loadError = false; render(); })
+    }).then(function(d){ log = d.log || {}; loadError = false; render(); return loadStrava(false).then(function(){ return loadStrava(true); }); })
       .catch(function(){ loadError = true; render(); });
   }
+  function stravaCall(action, member){
+    if (!pin){ status = "Bitte zuerst die Gruppen-PIN eingeben."; statusErr = true; editOpen = true; render(); return; }
+    busy = true; status = ""; statusErr = false; render();
+    fetch("/api/strava", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: action, pin: pin, member: member }) })
+      .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
+      .then(function(res){
+        busy = false; editOpen = true;
+        if (!res.ok){ status = res.d.error || "Das hat nicht geklappt."; statusErr = true; render(); return; }
+        try { localStorage.setItem("pin", pin); } catch (e) {}
+        if (action === "connect"){ location.href = res.d.url; return; }
+        strava = res.d; discArmed = ""; status = "Verbindung getrennt."; render();
+      })
+      .catch(function(){ busy = false; editOpen = true; status = "Keine Verbindung. Bitte noch einmal versuchen."; statusErr = true; render(); });
+  }
+  // Rückkehr von Strava: kurze Meldung zeigen und die Adresse wieder säubern.
+  (function(){
+    var q = new URLSearchParams(location.search), r = q.get("strava");
+    if (!r) return;
+    var who = MEMBERS.filter(function(p){ return p.id === q.get("member"); })[0];
+    var msgs = {
+      ok: "Strava" + (who ? " von " + who.name : "") + " ist verbunden. Die Aktivitäten werden gleich gezählt.",
+      denied: "Die Verbindung wurde abgebrochen.",
+      scope: "Strava braucht die Erlaubnis, Aktivitäten zu lesen. Bitte noch einmal verbinden und das Häkchen nicht entfernen."
+    };
+    status = msgs[r] || "Die Verbindung zu Strava hat nicht geklappt. Bitte noch einmal versuchen.";
+    statusErr = r !== "ok"; editOpen = true;
+    try { history.replaceState(null, "", location.pathname); } catch (e) {}
+  })();
   function save(){
     if (!dirty() || busy) return;
     if (!pin){ status = "Bitte zuerst die Gruppen-PIN eingeben."; statusErr = true; render(); return; }
@@ -265,6 +346,10 @@ summary{font-family:var(--display);font-size:22px;font-weight:600;text-transform
       var list = all.filter(function(x){ return x !== id; });
       for (var k = 0; k < (n + 1) % 4; k++) list.push(id);
       draft = list.sort(); status = ""; statusErr = false; editOpen = true; render();
+    } else if (t.dataset.conn){ stravaCall("connect", t.dataset.conn); }
+    else if (t.dataset.disc){
+      if (discArmed === t.dataset.disc) stravaCall("disconnect", t.dataset.disc);
+      else { discArmed = t.dataset.disc; editOpen = true; render(); }
     } else if (t.id === "save"){ save(); }
     else if (t.id === "copy"){
       var txt = shareText();
