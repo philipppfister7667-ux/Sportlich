@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Hoffentlich sportlich werden</title>
+<meta name="description" content="Trainingsliste der Gruppe mit Monatswertung, Medaillen und Jahreswertung.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%86%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#f1f4f0; --surface:#ffffff; --ink:#13211b; --muted:#5d6b64; --line:#d5dcd6;
+  --accent:#0b7a57; --accent-ink:#ffffff; --dot:#dfe5e0; --warn:#b3362b;
+  --gold:#c9971a; --silver:#8794a0; --bronze:#a8663a;
+  --display:"Barlow Condensed","Arial Narrow",Impact,sans-serif;
+  --body:"Barlow","Helvetica Neue",Arial,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){ :root{
+  --bg:#0f1714; --surface:#17221d; --ink:#e8efea; --muted:#93a39b; --line:#2a3a33;
+  --accent:#35c491; --accent-ink:#06231a; --dot:#26352e; --warn:#ef7d70;
+  --gold:#e3b53c; --silver:#a9b6c1; --bronze:#cf8a5b; color-scheme:dark } }
+*{box-sizing:border-box}
+html{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--body)}
+#app{max-width:640px;margin:0 auto;padding-inline:16px;padding-block:28px 56px;display:flex;flex-direction:column;gap:36px}
+h1,h2{font-family:var(--display);text-transform:uppercase;margin:0;text-wrap:balance;line-height:1}
+h1{font-size:clamp(40px,11vw,60px);font-weight:700;letter-spacing:.01em}
+h2{font-size:26px;font-weight:600;letter-spacing:.03em}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.sub{color:var(--muted);margin:0}
+header{display:flex;flex-direction:column;gap:10px}
+section{display:flex;flex-direction:column;gap:14px}
+.sechead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:8px}
+.nav{display:flex;align-items:center;gap:6px}
+.nav span{font-weight:600;min-width:9.5em;text-align:center}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.nav button{width:36px;height:36px;border:1px solid var(--line);background:var(--surface);border-radius:50%;font-size:18px;line-height:1}
+.nav button:disabled{opacity:.35;cursor:default}
+ol.rank{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+ol.rank li{display:grid;grid-template-columns:34px minmax(0,1fr) auto;column-gap:10px;row-gap:4px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.pos{font-family:var(--display);font-size:22px;font-weight:700;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
+.medal{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;color:#fff;font-size:18px}
+.m1{background:var(--gold)} .m2{background:var(--silver)} .m3{background:var(--bronze)}
+.name{font-weight:600;min-width:0;overflow-wrap:anywhere}
+.tag{display:inline-block;margin-left:8px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--warn);border:1px solid var(--warn);border-radius:3px;padding:0 5px;vertical-align:middle}
+.tag.good{color:var(--accent);border-color:var(--accent)}
+.count{font-family:var(--display);font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+.count small{font:500 12px var(--body);color:var(--muted);margin-left:4px}
+.dots{grid-column:2 / 4;display:flex;flex-wrap:wrap;gap:2px}
+.dots i{width:6px;height:12px;border-radius:1px;background:var(--dot)}
+.dots i.on{background:var(--accent)}
+.dots i.future{opacity:.4}
+.bar{grid-column:2 / 4;height:6px;background:var(--dot);border-radius:3px;overflow:hidden}
+.bar b{display:block;height:100%;background:var(--accent)}
+.note{color:var(--muted);font-size:14px;margin:0}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.pts{font-weight:600}
+ul.rules{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:6px;max-width:60ch}
+details{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px}
+summary{font-family:var(--display);font-size:22px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;cursor:pointer}
+.edit{display:flex;flex-direction:column;gap:14px;margin-top:14px}
+.edit label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
+.edit input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 10px;max-width:14em}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:8px 14px;font-weight:500}
+.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+.save{background:var(--ink);color:var(--bg);border:1px solid var(--ink);border-radius:4px;padding:10px 20px;font-weight:600}
+.save:disabled{opacity:.4;cursor:default}
+.save.ghost{background:transparent;color:var(--ink)}
+.status{font-size:14px;color:var(--muted);margin:0;min-height:1.4em}
+.status.err{color:var(--warn)}
+.edit textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 10px;width:100%}
+.loading{color:var(--muted)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app"><p class="loading">Lade Trainingsliste ...</p></div>
+<script>
+(function(){
+  var TITLE = "Hoffentlich sportlich werden";
+  var MEMBERS = [
+    {id:"philipp",name:"Philipp"},{id:"aaron",name:"Aaron"},{id:"cedric",name:"Cedric"},{id:"gille",name:"Gille"},
+    {id:"jannis",name:"Jannis"},{id:"luca",name:"Luca"},{id:"marcel",name:"Marcel"},{id:"nico",name:"Nico"},
+    {id:"tom",name:"Tom"},{id:"tristan",name:"Tristan"}
+  ];
+  var MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+  var app = document.getElementById("app");
+  var now = new Date();
+  var pad = function(n){ return (n < 10 ? "0" : "") + n; };
+  var iso = function(y, m, d){ return y + "-" + pad(m + 1) + "-" + pad(d); };
+  var today = iso(now.getFullYear(), now.getMonth(), now.getDate());
+  var view = { y: now.getFullYear(), m: now.getMonth() };
+  var log = {}, draft = null;            // draft: Einträge für editDate, solange nicht gespeichert
+  var editDate = today, editOpen = false, status = "", statusErr = false, busy = false, loadError = false, shareFallback = "";
+  var pin = "";
+  try { pin = localStorage.getItem("pin") || ""; } catch (e) {}
+
+  function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]; }); }
+  function dayEntries(){ return draft || (log[editDate] || []); }
+  function dirty(){ return draft !== null && JSON.stringify(draft) !== JSON.stringify(log[editDate] || []); }
+
+  function counts(prefix){
+    var c = {};
+    MEMBERS.forEach(function(p){ c[p.id] = 0; });
+    Object.keys(log).forEach(function(d){
+      if (d.indexOf(prefix) !== 0) return;
+      log[d].forEach(function(id){ if (id in c) c[id]++; });
+    });
+    return c;
+  }
+  function ranking(c){
+    var rows = MEMBERS.map(function(p){ return { id: p.id, name: p.name, n: c[p.id] }; });
+    rows.sort(function(a, b){ return b.n - a.n || a.name.localeCompare(b.name, "de"); });
+    rows.forEach(function(r, i){ r.pos = i > 0 && rows[i - 1].n === r.n ? rows[i - 1].pos : i + 1; });
+    return rows;
+  }
+  function medalTable(){
+    var t = {}, done = 0, months = {};
+    MEMBERS.forEach(function(p){ t[p.id] = { name: p.name, g: 0, s: 0, b: 0, pts: 0 }; });
+    var cur = today.slice(0, 7);
+    Object.keys(log).forEach(function(d){ if (log[d].length) months[d.slice(0, 7)] = 1; });
+    Object.keys(months).forEach(function(mk){
+      if (mk >= cur) return;
+      done++;
+      ranking(counts(mk)).forEach(function(r){
+        if (!r.n || r.pos > 3) return;
+        var e = t[r.id];
+        if (r.pos === 1){ e.g++; e.pts += 3; } else if (r.pos === 2){ e.s++; e.pts += 2; } else { e.b++; e.pts += 1; }
+      });
+    });
+    var rows = Object.keys(t).map(function(k){ return t[k]; });
+    rows.sort(function(a, b){ return b.pts - a.pts || b.g - a.g || a.name.localeCompare(b.name, "de"); });
+    return { rows: rows, done: done };
+  }
+
+  function monthSection(){
+    var mk = iso(view.y, view.m, 1).slice(0, 7);
+    var days = new Date(view.y, view.m + 1, 0).getDate();
+    var rows = ranking(counts(mk));
+    var min = rows[rows.length - 1].n, max = rows[0].n;
+    var isCur = view.y === now.getFullYear() && view.m === now.getMonth();
+    var h = '<section><div class="sechead"><h2>Monatswertung</h2><div class="nav">' +
+      '<button type="button" data-nav="-1" aria-label="Vorheriger Monat">&#8249;</button><span>' + MONTHS[view.m] + " " + view.y + '</span>' +
+      '<button type="button" data-nav="1" aria-label="Nächster Monat"' + (isCur ? " disabled" : "") + '>&#8250;</button></div></div>';
+    if (!max) h += '<p class="note">Für ' + MONTHS[view.m] + ' ist noch keine Einheit eingetragen. Wer zuerst trainiert, führt.</p>';
+    h += '<ol class="rank">';
+    rows.forEach(function(r){
+      var badge = r.n && r.pos <= 3 ? '<span class="medal m' + r.pos + '" aria-label="Platz ' + r.pos + '">' + r.pos + '</span>' : r.pos;
+      var tag = max && r.n === min && min < max ? '<span class="tag">Schlusslicht</span>' : "";
+      var dots = "";
+      for (var d = 1; d <= days; d++){
+        var key = iso(view.y, view.m, d);
+        var on = (log[key] || []).indexOf(r.id) >= 0;
+        dots += '<i class="' + (on ? "on" : key > today ? "future" : "") + '"></i>';
+      }
+      h += '<li><span class="pos">' + badge + '</span><span class="name">' + esc(r.name) + tag + '</span>' +
+        '<span class="count">' + r.n + '<small>' + (r.n === 1 ? "Einheit" : "Einheiten") + '</small></span>' +
+        '<div class="dots" aria-hidden="true">' + dots + '</div></li>';
+    });
+    return h + '</ol><p class="note">Ein Strich pro Tag des Monats. Grün heißt: trainiert.</p></section>';
+  }
+  function yearSection(){
+    var rows = ranking(counts(String(view.y))), max = rows[0].n;
+    var h = '<section><div class="sechead"><h2>Jahreswertung ' + view.y + '</h2></div>' +
+      '<p class="note">Wer bis zum 31. Dezember die meisten Einheiten hat, bekommt den Preis.</p><ol class="rank">';
+    rows.forEach(function(r){
+      var tag = max && r.pos === 1 ? '<span class="tag good">Auf Preiskurs</span>' : "";
+      h += '<li><span class="pos">' + r.pos + '</span><span class="name">' + esc(r.name) + tag + '</span>' +
+        '<span class="count">' + r.n + '</span><div class="bar"><b style="width:' + (max ? Math.round(r.n / max * 100) : 0) + '%"></b></div></li>';
+    });
+    return h + '</ol></section>';
+  }
+  function medalSection(){
+    var mt = medalTable();
+    var h = '<section><div class="sechead"><h2>Medaillenspiegel</h2></div>';
+    if (!mt.done) return h + '<p class="note">Die erste Medaillenrunde endet mit dem laufenden Monat. Gold bringt 3 Punkte, Silber 2, Bronze 1.</p></section>';
+    h += '<div class="tablewrap"><table><thead><tr><th>Name</th><th>Gold</th><th>Silber</th><th>Bronze</th><th>Punkte</th></tr></thead><tbody>';
+    mt.rows.forEach(function(r){
+      h += '<tr><td>' + esc(r.name) + '</td><td>' + r.g + '</td><td>' + r.s + '</td><td>' + r.b + '</td><td class="pts">' + r.pts + '</td></tr>';
+    });
+    return h + '</tbody></table></div><p class="note">Gewertet sind ' + mt.done + (mt.done === 1 ? " abgeschlossener Monat." : " abgeschlossene Monate.") + '</p></section>';
+  }
+  function rulesSection(){
+    return '<section><div class="sechead"><h2>So läuft es</h2></div><ul class="rules">' +
+      '<li>Nach dem Training ein Foto oder einen Tracker-Screenshot in die Gruppe posten. Jeder Post zählt als eine Einheit. Morgens Studio und abends joggen sind zwei, mehr als drei am Tag werden nicht gezählt.</li>' +
+      '<li>Am Monatsende gibt es Gold, Silber und Bronze für die drei mit den meisten Einheiten.</li>' +
+      '<li>Wer am Monatsende Schlusslicht ist, muss sich etwas anhören.</li>' +
+      '<li>Am Jahresende gewinnt die Person mit den meisten Einheiten den Preis.</li></ul></section>';
+  }
+  function editSection(){
+    var on = dayEntries();
+    var h = '<details id="editor"' + (editOpen ? " open" : "") + '><summary>Training eintragen</summary><div class="edit">' +
+      '<label for="pin">Gruppen-PIN<input type="password" id="pin" inputmode="numeric" autocomplete="off" value="' + esc(pin) + '"></label>' +
+      '<label for="editDate">Tag<input type="date" id="editDate" value="' + editDate + '" max="' + today + '"></label><div class="chips">';
+    MEMBERS.forEach(function(p){
+      var n = on.filter(function(x){ return x === p.id; }).length;
+      h += '<button type="button" data-member="' + p.id + '" aria-pressed="' + (n > 0) + '">' + esc(p.name) + (n > 1 ? " ×" + n : "") + '</button>';
+    });
+    h += '</div><div class="row"><button type="button" class="save" id="save"' + (dirty() && !busy ? "" : " disabled") + '>' + (busy ? "Speichert ..." : "Speichern") + '</button>' +
+      '<button type="button" class="save ghost" id="copy">Stand für WhatsApp kopieren</button></div>' +
+      '<p class="status' + (statusErr ? " err" : "") + '" role="status">' + esc(status || (dirty() ? "Ungespeicherte Änderungen." : "Tippe an, wer an dem Tag trainiert hat. Noch einmal tippen für eine zweite Einheit.")) + '</p>';
+    if (shareFallback) h += '<textarea id="shareBox" readonly rows="14">' + esc(shareFallback) + '</textarea>';
+    return h + '</div></details>';
+  }
+  function render(){
+    if (loadError){
+      app.innerHTML = '<p class="status err">Die Liste konnte nicht geladen werden. Prüfe die Verbindung und lade die Seite neu.</p>';
+      return;
+    }
+    app.innerHTML = '<header><div class="eyebrow">Fitness-Gruppe · ' + MEMBERS.length + ' Mitglieder</div><h1>' + TITLE + '</h1>' +
+      '<p class="sub">Keine Ausreden, nur Ziele. Jede Einheit zählt.</p></header>' +
+      monthSection() + yearSection() + medalSection() + rulesSection() + editSection();
+  }
+  function shareText(){
+    var rows = ranking(counts(iso(view.y, view.m, 1).slice(0, 7)));
+    var medals = ["", "🥇", "🥈", "🥉"];
+    var lines = ["*" + TITLE + "*", "Stand " + MONTHS[view.m] + " " + view.y, ""];
+    rows.forEach(function(r){ lines.push((r.n && r.pos <= 3 ? medals[r.pos] : r.pos + ".") + " " + r.name + ": " + r.n); });
+    lines.push("", location.href.split("#")[0]);
+    return lines.join("\n");
+  }
+
+  function load(){
+    return fetch("/api/log", { cache: "no-store" }).then(function(r){
+      if (!r.ok) throw new Error();
+      return r.json();
+    }).then(function(d){ log = d.log || {}; loadError = false; render(); })
+      .catch(function(){ loadError = true; render(); });
+  }
+  function save(){
+    if (!dirty() || busy) return;
+    if (!pin){ status = "Bitte zuerst die Gruppen-PIN eingeben."; statusErr = true; render(); return; }
+    busy = true; status = ""; statusErr = false; render();
+    fetch("/api/log", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ pin: pin, date: editDate, ids: draft }) })
+      .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
+      .then(function(res){
+        busy = false;
+        if (!res.ok){ status = res.d.error || "Speichern hat nicht geklappt."; statusErr = true; render(); return; }
+        log = res.d.log || {}; draft = null; status = "Gespeichert."; statusErr = false;
+        try { localStorage.setItem("pin", pin); } catch (e) {}
+        render();
+      })
+      .catch(function(){ busy = false; status = "Keine Verbindung. Bitte noch einmal versuchen."; statusErr = true; render(); });
+  }
+
+  app.addEventListener("click", function(ev){
+    var t = ev.target.closest("button");
+    if (!t) return;
+    if (t.dataset.nav){
+      var d = new Date(view.y, view.m + Number(t.dataset.nav), 1);
+      view = { y: d.getFullYear(), m: d.getMonth() };
+      render();
+    } else if (t.dataset.member){
+      var id = t.dataset.member, all = dayEntries();
+      var n = all.filter(function(x){ return x === id; }).length;
+      var list = all.filter(function(x){ return x !== id; });
+      for (var k = 0; k < (n + 1) % 4; k++) list.push(id);
+      draft = list.sort(); status = ""; statusErr = false; editOpen = true; render();
+    } else if (t.id === "save"){ save(); }
+    else if (t.id === "copy"){
+      var txt = shareText();
+      var fallback = function(){
+        shareFallback = txt; status = "Kopieren ging nicht automatisch. Text unten markieren und kopieren."; statusErr = false; editOpen = true; render();
+        var box = document.getElementById("shareBox"); if (box){ box.focus(); box.select(); }
+      };
+      try {
+        navigator.clipboard.writeText(txt).then(function(){ shareFallback = ""; status = "Kopiert. Jetzt in die Gruppe einfügen."; statusErr = false; editOpen = true; render(); }, fallback);
+      } catch (e){ fallback(); }
+    }
+  });
+  app.addEventListener("input", function(ev){ if (ev.target.id === "pin") pin = ev.target.value.trim(); });
+  app.addEventListener("change", function(ev){
+    if (ev.target.id !== "editDate" || !ev.target.value) return;
+    editDate = ev.target.value > today ? today : ev.target.value;
+    draft = null;
+    var p = editDate.split("-");
+    view = { y: Number(p[0]), m: Number(p[1]) - 1 };
+    editOpen = true; render();
+  });
+  app.addEventListener("toggle", function(ev){ if (ev.target.id === "editor") editOpen = ev.target.open; }, true);
+  document.addEventListener("visibilitychange", function(){ if (!document.hidden && !dirty() && !busy) load(); });
+
+  load();
+})();
+</script>
+</body>
+</html>
